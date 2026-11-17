@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TZ Fast Data Bundles</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 16px; }
+    .card { background: #1e293b; padding: 28px; border-radius: 16px; width: 100%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }
+    h2 { margin-top: 0; text-align: center; color: #38bdf8; }
+    label { display: block; margin: 14px 0 6px; font-size: 0.9rem; color: #cbd5e1; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .option-btn { background: #334155; border: 2px solid transparent; color: #fff; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: 600; text-align: center; transition: 0.2s; }
+    .option-btn.active { border-color: #38bdf8; background: #0284c7; }
+    input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 1rem; }
+    button.submit-btn { width: 100%; margin-top: 20px; padding: 14px; border: none; border-radius: 10px; background: #10b981; color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer; }
+    button.submit-btn:disabled { background: #475569; cursor: not-allowed; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.9rem; display: none; }
+    .status.success { background: #064e3b; color: #6ee7b7; display: block; }
+    .status.error { background: #7f1d1d; color: #fca5a5; display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Buy Instant Data Bundles</h2>
+
+    <label>1. Select Network</label>
+    <div class="grid" id="networks">
+      <div class="option-btn active" data-val="Halotel">Halotel</div>
+      <div class="option-btn" data-val="Vodacom">Vodacom</div>
+      <div class="option-btn" data-val="Tigo">Tigo</div>
+      <div class="option-btn" data-val="Airtel">Airtel</div>
+    </div>
+
+    <label>2. Select Bundle</label>
+    <div class="grid" id="bundles">
+      <div class="option-btn active" data-val="6GB">6GB — 3,000 TZS</div>
+      <div class="option-btn" data-val="9GB">9GB — 5,000 TZS</div>
+    </div>
+
+    <label for="phone">3. Phone Number (to receive Push & Bundle)</label>
+    <input type="tel" id="phone" placeholder="e.g. 0621234567 or 0754123456" required />
+
+    <button class="submit-btn" id="payBtn">Pay via USSD Push</button>
+    <div id="statusBox" class="status"></div>
+  </div>
+
+  <script>
+    let selectedNetwork = 'Halotel';
+    let selectedBundle = '6GB';
+
+    function setupSelector(containerId, callback) {
+      const container = document.getElementById(containerId);
+      container.querySelectorAll('.option-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          container.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          callback(btn.dataset.val);
+        });
+      });
+    }
+
+    setupSelector('networks', val => selectedNetwork = val);
+    setupSelector('bundles', val => selectedBundle = val);
+
+    document.getElementById('payBtn').addEventListener('click', async () => {
+      const phone = document.getElementById('phone').value.trim();
+      const statusBox = document.getElementById('statusBox');
+      const payBtn = document.getElementById('payBtn');
+
+      if (!phone) {
+        statusBox.className = 'status error';
+        statusBox.textContent = 'Please enter a valid phone number.';
+        return;
+      }
+
+      payBtn.disabled = true;
+      payBtn.textContent = 'Sending Push...';
+      statusBox.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/buy-bundle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ network: selectedNetwork, bundleId: selectedBundle, phone })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          statusBox.className = 'status success';
+          statusBox.textContent = data.message;
+        } else {
+          statusBox.className = 'status error';
+          statusBox.textContent = data.message || 'Payment initiation failed.';
+        }
+      } catch (err) {
+        statusBox.className = 'status error';
+        statusBox.textContent = 'Network error. Please try again.';
+      } finally {
+        payBtn.disabled = false;
+        payBtn.textContent = 'Pay via USSD Push';
+      }
+    });
+  </script>
+</body>
+</html>
